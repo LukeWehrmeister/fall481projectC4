@@ -2,11 +2,9 @@ import pygame
 import sys
 import numpy as np
 import random
-import copy
 
 pygame.init()
 
-#Basic implementation of Connect 4 parameters in PyGame
 WIDTH, HEIGHT = 700, 700  # Height increased to add a top row for drop selection
 ROWS, COLS = 6, 7
 SQUARE_SIZE = 100
@@ -15,9 +13,7 @@ board = [[0 for _ in range(COLS)] for _ in range(ROWS)]
 PLAYER_PIECE = 1
 BOT_PIECE = 2
 
-#Evaluation function used to get a simple score from board positions
-#Strategy: the bot scores the middle of the board higher than other sections
-#
+
 def position_evaluation(board, piece):
     score = 0
     c_arr = [int(board[i][COLS//2]) for i in range(ROWS)]
@@ -28,7 +24,7 @@ def position_evaluation(board, piece):
     for h in range(ROWS):
         h_array = [int(board[h][c]) for c in range(COLS)]
         for c in range(COLS - 3):
-            tally = h_array[c:c + 4]
+            tally = h_array[h:h + 4]
             score += evaluate_moves(tally, piece)
     #Vertical Scoring
     for v in range(COLS):
@@ -43,62 +39,54 @@ def position_evaluation(board, piece):
             score += evaluate_moves(tally, piece)
     for r in range(ROWS - 3):
         for c in range(COLS - 3):
-            tally = [board[r + 3 - i][c + i] for i in range(4)]
+            rally = [board[r + 3 - i][c + i] for i in range(4)]
             score += evaluate_moves(tally, piece)
     return score
 
-#This function evaluates the specific moves on the board
-#Implementation is fairly simple, the more pieces it can line up in a row, the higher the score
-#Similarly, if it sees a winning move or nearly a winning move, it looks to block that move
 def evaluate_moves(block, piece):
     score = 0
-
     if piece == BOT_PIECE:
         opposition = PLAYER_PIECE
     else:
         opposition = BOT_PIECE
     
-    #Bot sees a winning move
     if block.count(piece) == 4:
-        score += 50
-    #Bot sees a move where it can win on its next move
+        score += 500
     elif block.count(piece) == 3 and block.count(0) == 1:
-        score += 6
-    #Bot sees this favorably
+        score += 25
     elif block.count(piece) == 2 and block.count(0) == 2:
-        score += 3
-    #Bot sees an opponents winning move
+        score += 10
+    
     if block.count(opposition) == 3 and block.count(0) == 1:
-        score -= 8
+        score -= 20
 
     return score
     
-#Main minimax function to search the tree for plays
-def minimax(board, depth, alpha, beta, is_max):
-    #Checks all potential moves, basically every column available
+def minimax( board, depth, alpha, beta, is_max):
+    #checks for all available plays
     all_plays = [p for p in range(COLS) if is_valid_location(board, p)]
-    end_of_game = winning_move(board, BOT_PIECE) or winning_move(board, PLAYER_PIECE) or len(all_plays) == 0
+        
+    #these are all situations where the game is over
+    end_of_game = winning_move(BOT_PIECE) or winning_move(PLAYER_PIECE) or len(all_plays) == 0
 
     if depth == 0 or end_of_game:
         if end_of_game:
-            #Using an arbitrary number to determine outcome, in this case I just used the current episode count of One Piece times 100
-            if winning_move(board, BOT_PIECE):
-                return None, 112400
-            elif winning_move(board, PLAYER_PIECE):
-                return None, -112400
+            if winning_move(BOT_PIECE):
+                return None, 1124
+            elif winning_move(PLAYER_PIECE):
+                return None, -1124
             else:
                 return None, 0
         else:
             return None, position_evaluation(board, BOT_PIECE)
         
-    #Maximizing
     if is_max:
         v = -np.inf
         best_col = random.choice(all_plays)
         for c in all_plays:
             row = get_next_open_row(board, c)
-            temp_board = copy.deepcopy(board)
-            drop_piece(temp_board, row, c, BOT_PIECE)
+            temp_board = board.copy()
+            bot_drop_piece(temp_board, row, c, BOT_PIECE)
             ingest_score = minimax(temp_board, depth - 1, alpha, beta, False)[1]
             if ingest_score > v:
                 v = ingest_score
@@ -107,15 +95,14 @@ def minimax(board, depth, alpha, beta, is_max):
             if alpha >= beta:
                 break
         return best_col, v
-
-    #Minimizing
+    
     else:
         v = np.inf
         best_col = random.choice(all_plays)
         for c in all_plays:
             row = get_next_open_row(board, c)
-            temp_board = copy.deepcopy(board)
-            drop_piece(temp_board, row, c, PLAYER_PIECE)
+            temp_board = board.copy()
+            bot_drop_piece(temp_board, row, c, PLAYER_PIECE)
             ingest_score = minimax(temp_board, depth - 1, alpha, beta, True)[1]
             if ingest_score < v:
                 v = ingest_score
@@ -124,12 +111,11 @@ def minimax(board, depth, alpha, beta, is_max):
             if alpha >= beta:
                 break
         return best_col, v
-        
+    
 def bot_move(board):
-    #Maximum depth can be adjusted to allow the tree to search deeper
-    #4 is currently the best sweet spot but we can make some optimizations if needed
     max_depth = 4
-    col, _ = minimax(board, max_depth, -np.inf, np.inf, True)
+    temp_board = board.copy()
+    col, _ = minimax(temp_board, max_depth, -np.inf, np.inf, True)
     return col
 
 
@@ -161,25 +147,22 @@ def draw_board():
                 pygame.draw.circle(screen, YELLOW, (col * SQUARE_SIZE + SQUARE_SIZE // 2, HEIGHT - (row * SQUARE_SIZE + SQUARE_SIZE // 2)), RADIUS)
     pygame.display.update()
 
-def drop_piece(board, row, col, piece):
+def drop_piece(row, col, piece):
     board[row][col] = piece
 
 # Function for the bot to drop pieces into a copy of the board for the minimax function
-# Deprecated 
-#def bot_drop_piece(board, row, col, piece):
-#    b_board = board.copy()
-#    b_board[row][col] = piece
+def bot_drop_piece(b_board, row, col, piece):
+    b_board[row][col] = piece
 
 def is_valid_location(board, col):
-    return board[ROWS - 1][col] == 0
+    return board[ROWS-1][col] == 0
 
 def get_next_open_row(board, col):
     for r in range(ROWS):
         if board[r][col] == 0:
             return r
 
-#Simple check for a winning move
-def winning_move(board, piece):
+def winning_move(piece):
     # Check horizontal locations
     for c in range(COLS - 3):
         for r in range(ROWS):
@@ -209,6 +192,7 @@ game_over = False
 turn = 0  # 0 for Player 1 (RED), 1 for Player 2 (YELLOW)
 
 draw_board()  # Initial draw
+#bot = ConnectFourBot(ROWS, COLS)
 
 while not game_over:
     for event in pygame.event.get():
@@ -232,9 +216,9 @@ while not game_over:
 
                 if is_valid_location(board, col):
                     row = get_next_open_row(board, col)
-                    drop_piece(board, row, col, 1)
+                    drop_piece(row, col, 1)
 
-                    if winning_move(board, 1):
+                    if winning_move(1):
                         print("Player 1 wins!")
                         game_over = True
 
@@ -247,9 +231,9 @@ while not game_over:
                 bot_col = bot_move(board)
                 if is_valid_location(board, bot_col):
                     bot_row = get_next_open_row(board, bot_col)
-                    drop_piece(board, bot_row, bot_col, 2)
+                    drop_piece(bot_row, bot_col, 2)
                     
-                    if winning_move(board, 2):
+                    if winning_move(2):
                         print("Player 2 wins!")
                         game_over = True
 
