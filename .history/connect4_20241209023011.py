@@ -1,6 +1,7 @@
 import pygame
 import sys
 import numpy as np
+import random
 import copy
 
 pygame.init()
@@ -16,10 +17,9 @@ BOT_PIECE = 2
 
 #Evaluation function used to get a simple score from board positions
 #Strategy: the bot scores the middle of the board higher than other sections
+#
 def position_evaluation(board, piece):
     score = 0
-
-    #Added a 4 point weight to the center of the board
     c_arr = [int(board[i][COLS//2]) for i in range(ROWS)]
     c_count = c_arr.count(piece)
     score += c_count * 4
@@ -94,6 +94,7 @@ def minimax(board, depth, alpha, beta, is_max):
     #Maximizing
     if is_max:
         v = -np.inf
+        #best_col = random.choice(all_plays)
         for c in all_plays:
             row = get_next_open_row(board, c)
             temp_board = copy.deepcopy(board)
@@ -110,6 +111,7 @@ def minimax(board, depth, alpha, beta, is_max):
     #Minimizing
     else:
         v = np.inf
+        #best_col = random.choice(all_plays)
         for c in all_plays:
             row = get_next_open_row(board, c)
             temp_board = copy.deepcopy(board)
